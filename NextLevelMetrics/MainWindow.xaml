@@ -5,12 +5,22 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:NextLevelMetrics"
         mc:Ignorable="d"
-        Title="Next Level Metrics" Height="260" Width="320">
-    <StackPanel Margin="24">
-        <TextBlock Text="Next Level Metrics" FontSize="24" Margin="0,0,0,20" />
-        <TextBlock Text="FPS: --" />
-        <TextBlock Text="CPU: -- °C" />
-        <TextBlock Text="GPU: -- °C" />
-        <TextBlock Text="HOTSPOT: -- °C" />
-    </StackPanel>
+        Title="Next Level Metrics" Height="520" Width="900">
+    <DockPanel Margin="24">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,20">
+            <TextBlock Text="Next Level Metrics" FontSize="24" Margin="0,0,0,16" />
+            <TextBlock x:Name="CpuTemperatureText" Text="CPU: No disponible" />
+            <TextBlock x:Name="GpuTemperatureText" Text="GPU: No disponible" />
+            <TextBlock x:Name="HotspotTemperatureText" Text="HOTSPOT: No disponible" />
+        </StackPanel>
+        <GroupBox Header="Diagnóstico: sensores de temperatura CPU y GPU">
+            <TextBox x:Name="SensorDiagnosticsText"
+                     IsReadOnly="True"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     HorizontalScrollBarVisibility="Auto"
+                     VerticalScrollBarVisibility="Auto"
+                     TextWrapping="NoWrap" />
+        </GroupBox>
+    </DockPanel>
 </Window>
