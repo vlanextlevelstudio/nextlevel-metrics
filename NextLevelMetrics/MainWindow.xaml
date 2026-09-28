@@ -1,0 +1,16 @@
+﻿<Window x:Class="NextLevelMetrics.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:NextLevelMetrics"
+        mc:Ignorable="d"
+        Title="Next Level Metrics" Height="260" Width="320">
+    <StackPanel Margin="24">
+        <TextBlock Text="Next Level Metrics" FontSize="24" Margin="0,0,0,20" />
+        <TextBlock Text="FPS: --" />
+        <TextBlock Text="CPU: -- °C" />
+        <TextBlock Text="GPU: -- °C" />
+        <TextBlock Text="HOTSPOT: -- °C" />
+    </StackPanel>
+</Window>

@@ -1,0 +1,17 @@
+# .NET build output
+bin/
+obj/
+
+# Visual Studio and VS Code local state
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test and coverage output
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
