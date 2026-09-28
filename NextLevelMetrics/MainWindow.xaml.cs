@@ -1,77 +1,109 @@
-﻿using System.Text;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Globalization;
 using System.Windows.Threading;
 using LibreHardwareMonitor.Hardware;
 
 namespace NextLevelMetrics;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
 public partial class MainWindow : Window
 {
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _temperatureTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _fpsTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private Computer? _computer;
+    private bool _cpuReady;
+    private bool _fpsReady;
+    private double? _fps;
+    private long _lastFpsAt;
+    private double? _cpuTemperature;
+    private float? _gpuTemperature;
+    private float? _hotspotTemperature;
+
+    [DllImport("NextLevelCpuBridge.dll", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int AbrirCpu();
+
+    [DllImport("NextLevelCpuBridge.dll", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int LeerTemperaturaCpu(out double temperature);
+
+    [DllImport("NextLevelCpuBridge.dll", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void CerrarCpu();
+
+    [DllImport("NextLevelFpsBridge.dll", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int AbrirFps();
+
+    [DllImport("NextLevelFpsBridge.dll", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int LeerFps(out int fps);
+
+    [DllImport("NextLevelFpsBridge.dll", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void CerrarFps();
 
     public MainWindow()
     {
         InitializeComponent();
         Loaded += OnLoaded;
         Closed += OnClosed;
-        _timer.Tick += (_, _) => RefreshReadings();
+        _temperatureTimer.Tick += (_, _) => RefreshReadings();
+        _fpsTimer.Tick += (_, _) => RefreshFps();
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        try { _cpuReady = AbrirCpu() == 0; }
+        catch (Exception ex) { Debug.WriteLine($"No se pudo iniciar el SDK de AMD: {ex.Message}"); }
+
         try
         {
             _computer = new Computer
             {
-                IsCpuEnabled = true,
                 IsGpuEnabled = true
             };
             _computer.Open();
-            RefreshReadings();
-            _timer.Start();
         }
         catch (Exception ex)
         {
-            SensorDiagnosticsText.Text = $"No se pudieron iniciar los sensores: {ex.Message}";
+            Debug.WriteLine($"No se pudieron iniciar los sensores GPU: {ex.Message}");
+            _computer = null;
         }
+
+        try { _fpsReady = AbrirFps() == 0; }
+        catch (Exception ex) { Debug.WriteLine($"No se pudo iniciar ADLX para FPS: {ex.Message}"); }
+        RefreshReadings();
+        _temperatureTimer.Start();
+        _fpsTimer.Start();
     }
 
     private void OnClosed(object? sender, EventArgs e)
     {
-        _timer.Stop();
+        _temperatureTimer.Stop();
+        _fpsTimer.Stop();
+        if (_fpsReady) CerrarFps();
         _computer?.Close();
+        if (_cpuReady) CerrarCpu();
     }
 
     private void RefreshReadings()
     {
-        if (_computer is null)
-            return;
+        _cpuTemperature = null;
+        if (_cpuReady)
+        {
+            try
+            {
+                if (LeerTemperaturaCpu(out double value) == 0 && double.IsFinite(value) && value > 0)
+                    _cpuTemperature = value;
+            }
+            catch (Exception ex) { Debug.WriteLine($"Error al leer la CPU: {ex.Message}"); }
+        }
 
         var readings = new List<TemperatureReading>();
         var errors = new List<string>();
-        foreach (IHardware hardware in _computer.Hardware)
+        foreach (IHardware hardware in _computer?.Hardware ?? [])
         {
-            if (hardware.HardwareType == HardwareType.Cpu || IsGpu(hardware.HardwareType))
+            if (IsGpu(hardware.HardwareType))
                 CollectTemperatures(hardware, hardware, readings, errors);
         }
 
-        var cpuReadings = readings.Where(r => r.Root.HardwareType == HardwareType.Cpu).ToList();
         var gpuReadings = readings.Where(r => IsGpu(r.Root.HardwareType)).ToList();
-        TemperatureReading? cpu = FindNamed(cpuReadings,
-            "CPU Package", "Core (Tctl/Tdie)", "CPU (Tctl/Tdie)", "Core (Tdie)");
         TemperatureReading? gpu = FindNamed(gpuReadings,
             "GPU Core", "GPU Temperature", "GPU Core Temperature");
         IHardware? selectedGpu = gpu?.Root ?? gpuReadings
@@ -80,25 +112,51 @@ public partial class MainWindow : Window
             .FirstOrDefault(r => ReferenceEquals(r.Root, selectedGpu)
                 && IsHotspot(r.Sensor.Name) && HasReading(r.Sensor));
 
-        CpuTemperatureText.Text = $"CPU: {DisplayTemperature(cpu)}";
-        GpuTemperatureText.Text = $"GPU: {DisplayTemperature(gpu)}";
-        HotspotTemperatureText.Text = $"HOTSPOT: {DisplayTemperature(hotspot)}";
-
-        var lines = new List<string> { $"Actualizado: {DateTime.Now:HH:mm:ss}" };
-        foreach (TemperatureReading reading in readings)
-        {
-            string value = reading.Sensor.Value is float temperature
-                ? $"{temperature.ToString("F1", CultureInfo.InvariantCulture)} °C"
-                : "No disponible";
-            lines.Add($"{reading.Hardware.HardwareType} | {reading.Hardware.Name} | " +
-                $"{reading.Sensor.Name} | {value} | {reading.Sensor.Identifier}");
-        }
-        if (readings.Count == 0)
-            lines.Add("No se encontraron sensores de temperatura CPU/GPU.");
-        lines.AddRange(errors.Select(error => $"Error: {error}"));
-        SensorDiagnosticsText.Text = string.Join(Environment.NewLine, lines);
-        System.Diagnostics.Debug.WriteLine(SensorDiagnosticsText.Text);
+        _gpuTemperature = gpu?.Sensor.Value;
+        _hotspotTemperature = hotspot?.Sensor.Value;
+        foreach (string error in errors) Debug.WriteLine($"Sensor GPU: {error}");
+        RenderLine();
+        Debug.WriteLine(MetricsText.Text);
     }
+
+    private void RenderLine()
+    {
+        MetricsText.Text = $"FPS {FormatFps(_fps)} | CPU {FormatTemperature(_cpuTemperature)} | " +
+            $"GPU {FormatTemperature(_gpuTemperature)} - {FormatTemperature(_hotspotTemperature)}";
+    }
+
+    private void RefreshFps()
+    {
+        if (_fpsReady)
+        {
+            try
+            {
+                int result = LeerFps(out int value);
+                if (result == 0 && value > 0)
+                {
+                    _fps = value;
+                    _lastFpsAt = Stopwatch.GetTimestamp();
+                }
+            }
+            catch (Exception ex) { Debug.WriteLine($"Error al leer FPS de ADLX: {ex.Message}"); }
+        }
+
+        if (_fps is not null &&
+            Stopwatch.GetElapsedTime(_lastFpsAt) > TimeSpan.FromSeconds(3))
+            _fps = null;
+        RenderLine();
+    }
+
+    private static string FormatFps(double? value) => value is > 0 and < double.PositiveInfinity
+        ? Math.Round(value.Value, 0, MidpointRounding.AwayFromZero).ToString("F0", CultureInfo.InvariantCulture)
+        : "--";
+
+    private static string FormatTemperature(double? value) => value is > 0 and < double.PositiveInfinity
+        ? $"{Math.Round(value.Value, 0, MidpointRounding.AwayFromZero).ToString("F0", CultureInfo.InvariantCulture)}°"
+        : "--";
+
+    private static string FormatTemperature(float? value) =>
+        FormatTemperature(value is float number ? (double)number : null);
 
     private static void CollectTemperatures(IHardware root, IHardware hardware,
         List<TemperatureReading> readings, List<string> errors)
@@ -137,11 +195,6 @@ public partial class MainWindow : Window
 
     private static bool HasReading(ISensor sensor) =>
         sensor.Value is float value && float.IsFinite(value) && value > 0;
-
-    private static string DisplayTemperature(TemperatureReading? reading) =>
-        reading is not null && reading.Sensor.Value is float value
-            ? $"{value.ToString("F1", CultureInfo.InvariantCulture)} °C"
-            : "No disponible";
 
     private sealed record TemperatureReading(IHardware Root, IHardware Hardware, ISensor Sensor);
 }

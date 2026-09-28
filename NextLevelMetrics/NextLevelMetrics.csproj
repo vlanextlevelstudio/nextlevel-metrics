@@ -11,6 +11,19 @@
 
   <ItemGroup>
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <Content Include="..\externos\PresentMon\PresentMon.exe" Link="PresentMon.exe" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <Target Name="CompilarPuenteCpu" BeforeTargets="Build"
+          Inputs="CpuBridge\CpuBridge.cpp;CpuBridge\CpuBridge.vcxproj"
+          Outputs="$(OutputPath)NextLevelCpuBridge.dll">
+    <Exec Command="&quot;C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe&quot; &quot;$(MSBuildProjectDirectory)\CpuBridge\CpuBridge.vcxproj&quot; /p:Configuration=$(Configuration) /p:Platform=x64 /nologo /v:minimal" />
+  </Target>
+
+  <Target Name="CompilarPuenteFps" BeforeTargets="Build"
+          Inputs="FpsBridge\FpsBridge.cpp;FpsBridge\FpsBridge.vcxproj;..\externos\ADLX\SDK\ADLXHelper\Windows\Cpp\ADLXHelper.cpp;..\externos\ADLX\SDK\platform\Windows\WinAPIs.cpp"
+          Outputs="$(OutputPath)NextLevelFpsBridge.dll">
+    <Exec Command="&quot;C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe&quot; &quot;$(MSBuildProjectDirectory)\FpsBridge\FpsBridge.vcxproj&quot; /p:Configuration=$(Configuration) /p:Platform=x64 /nologo /v:minimal" />
+  </Target>
 
 </Project>

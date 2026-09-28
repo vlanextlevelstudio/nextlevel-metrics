@@ -1,26 +1,14 @@
 ﻿<Window x:Class="NextLevelMetrics.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:NextLevelMetrics"
-        mc:Ignorable="d"
-        Title="Next Level Metrics" Height="520" Width="900">
-    <DockPanel Margin="24">
-        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,20">
-            <TextBlock Text="Next Level Metrics" FontSize="24" Margin="0,0,0,16" />
-            <TextBlock x:Name="CpuTemperatureText" Text="CPU: No disponible" />
-            <TextBlock x:Name="GpuTemperatureText" Text="GPU: No disponible" />
-            <TextBlock x:Name="HotspotTemperatureText" Text="HOTSPOT: No disponible" />
-        </StackPanel>
-        <GroupBox Header="Diagnóstico: sensores de temperatura CPU y GPU">
-            <TextBox x:Name="SensorDiagnosticsText"
-                     IsReadOnly="True"
-                     FontFamily="Consolas"
-                     FontSize="12"
-                     HorizontalScrollBarVisibility="Auto"
-                     VerticalScrollBarVisibility="Auto"
-                     TextWrapping="NoWrap" />
-        </GroupBox>
-    </DockPanel>
+        Title="Next Level Metrics"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+    <Border Padding="18,12">
+        <TextBlock x:Name="MetricsText"
+                   Text="FPS -- | CPU -- | GPU -- - --"
+                   FontSize="20"
+                   TextWrapping="NoWrap" />
+    </Border>
 </Window>
