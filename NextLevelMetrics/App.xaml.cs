@@ -39,17 +39,14 @@ public partial class App : System.Windows.Application
 
     private void ExitFromTray()
     {
-        _tray?.Dispose();
-        _tray = null;
-        _runtime?.Dispose();
-        _runtime = null;
         Shutdown();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _tray?.Dispose();
         _runtime?.Dispose();
+        _tray?.Dispose();
+        _runtime?.CloseOwnedRtss();
         _rtss?.Dispose();
         if (_ownsMutex) _singleInstance?.ReleaseMutex();
         _singleInstance?.Dispose();
