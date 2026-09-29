@@ -1,0 +1,118 @@
+<Window x:Class="NextLevelMetrics.ConfiguracionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Next Level Metrics - Configuración"
+        Width="610" Height="700" MinWidth="560" MinHeight="620"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <Style TargetType="TextBox">
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="MinHeight" Value="27" />
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="MinHeight" Value="28" />
+        </Style>
+    </Window.Resources>
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+            <TextBlock x:Name="StatusText" Foreground="#B00020" TextWrapping="Wrap" MinHeight="20" />
+            <DockPanel Margin="0,8,0,0">
+                <Button x:Name="RestoreButton" Content="Restaurar valores predeterminados"
+                        Padding="12,7" DockPanel.Dock="Left" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="CancelButton" Content="Cancelar" MinWidth="90" Padding="12,7" Margin="0,0,8,0" />
+                    <Button x:Name="SaveButton" Content="Guardar" MinWidth="90" Padding="12,7" />
+                </StackPanel>
+            </DockPanel>
+        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <GroupBox Header="APARIENCIA" Padding="12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Color principal" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Margin="0,5,0,14">
+                            <TextBox x:Name="ColorText" Width="105" MaxLength="7" />
+                            <Border x:Name="ColorPreview" Width="32" Height="27" BorderBrush="#888" BorderThickness="1" Margin="8,0,8,0" />
+                            <Button x:Name="PickColorButton" Content="Elegir color..." Padding="10,4" />
+                        </StackPanel>
+
+                        <TextBlock Text="Tamaño del overlay" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Margin="0,5,0,14">
+                            <Slider x:Name="SizeSlider" Minimum="50" Maximum="250" Value="100"
+                                    TickFrequency="10" IsSnapToTickEnabled="True" Width="350" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SizeLabel" Text="100 %" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <TextBlock Text="Posición" FontWeight="SemiBold" />
+                        <ComboBox x:Name="PositionCombo" Width="220" HorizontalAlignment="Left" Margin="0,5,0,14">
+                            <ComboBoxItem Content="Superior izquierda" />
+                            <ComboBoxItem Content="Superior derecha" />
+                            <ComboBoxItem Content="Inferior izquierda" />
+                            <ComboBoxItem Content="Inferior derecha" />
+                        </ComboBox>
+
+                        <TextBlock Text="Fuente" FontWeight="SemiBold" />
+                        <ComboBox x:Name="FontCombo" Width="220" HorizontalAlignment="Left" Margin="0,5,0,4" />
+                        <TextBlock Text="En RTSS, la fuente elegida solo se aplica cuando utiliza el modo Raster3D. No se modificará su configuración global."
+                                   Foreground="#555" TextWrapping="Wrap" Margin="0,0,0,14" />
+
+                        <TextBlock Text="Fondo del overlay" FontWeight="SemiBold" />
+                        <ComboBox x:Name="BackgroundCombo" Width="220" HorizontalAlignment="Left" Margin="0,5,0,4">
+                            <ComboBoxItem Content="Transparente" />
+                            <ComboBoxItem Content="Oscuro suave" />
+                        </ComboBox>
+                        <TextBlock Text="El fondo oscuro de RTSS es sólido; el del escritorio tiene transparencia moderada."
+                                   Foreground="#555" TextWrapping="Wrap" />
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="TEMPERATURAS" Padding="12">
+                    <StackPanel>
+                        <CheckBox x:Name="AlertsCheck" Content="Avisos por color" Margin="0,0,0,12" />
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="110" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="1" Text="Aviso (°)" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="2" Text="Crítico (°)" FontWeight="SemiBold" />
+                        </Grid>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="110" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="CPU" VerticalAlignment="Center" />
+                            <TextBox x:Name="CpuWarningText" Grid.Column="1" Width="78" HorizontalAlignment="Left" MaxLength="3" />
+                            <TextBox x:Name="CpuCriticalText" Grid.Column="2" Width="78" HorizontalAlignment="Left" MaxLength="3" />
+                        </Grid>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="110" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="GPU" VerticalAlignment="Center" />
+                            <TextBox x:Name="GpuWarningText" Grid.Column="1" Width="78" HorizontalAlignment="Left" MaxLength="3" />
+                            <TextBox x:Name="GpuCriticalText" Grid.Column="2" Width="78" HorizontalAlignment="Left" MaxLength="3" />
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="110" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Hotspot GPU" VerticalAlignment="Center" />
+                            <TextBox x:Name="HotspotWarningText" Grid.Column="1" Width="78" HorizontalAlignment="Left" MaxLength="3" />
+                            <TextBox x:Name="HotspotCriticalText" Grid.Column="2" Width="78" HorizontalAlignment="Left" MaxLength="3" />
+                        </Grid>
+                        <TextBlock Text="Aviso: amarillo. Crítico: rojo. Solo cambia el valor de la temperatura afectada."
+                                   Foreground="#555" TextWrapping="Wrap" Margin="0,12,0,0" />
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

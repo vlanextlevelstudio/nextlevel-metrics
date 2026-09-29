@@ -7,6 +7,8 @@ public partial class App : System.Windows.Application
     private RtssSharedMemoryClient? _rtss;
     private MetricsRuntime? _runtime;
     private TrayController? _tray;
+    private ConfiguracionWindow? _configurationWindow;
+    private OverlaySettings _savedSettings = new();
     private Mutex? _singleInstance;
     private bool _ownsMutex;
 
@@ -32,9 +34,33 @@ public partial class App : System.Windows.Application
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         base.OnStartup(e);
-        _runtime = new MetricsRuntime();
-        _tray = new TrayController(_runtime, ExitFromTray);
+        _savedSettings = OverlaySettingsStore.Load();
+        _runtime = new MetricsRuntime(_savedSettings);
+        _tray = new TrayController(_runtime, ShowConfiguration, ExitFromTray);
         _ = _runtime.RunAsync();
+    }
+
+    private void ShowConfiguration()
+    {
+        if (_configurationWindow is not null)
+        {
+            if (_configurationWindow.WindowState == WindowState.Minimized)
+                _configurationWindow.WindowState = WindowState.Normal;
+            _configurationWindow.Activate();
+            return;
+        }
+
+        _configurationWindow = new ConfiguracionWindow(_savedSettings,
+            settings => _runtime?.SetSettings(settings),
+            settings =>
+            {
+                OverlaySettingsStore.Save(settings);
+                _savedSettings = settings.Clone();
+                _runtime?.SetSettings(settings);
+            });
+        _configurationWindow.Closed += (_, _) => _configurationWindow = null;
+        _configurationWindow.Show();
+        _configurationWindow.Activate();
     }
 
     private void ExitFromTray()
@@ -44,6 +70,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _configurationWindow?.Close();
         _runtime?.Dispose();
         _tray?.Dispose();
         _runtime?.CloseOwnedRtss();

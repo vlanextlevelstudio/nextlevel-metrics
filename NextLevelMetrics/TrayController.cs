@@ -11,7 +11,7 @@ internal sealed class TrayController : IDisposable
     private readonly Forms.ToolStripMenuItem _hide;
     private readonly MetricsRuntime _runtime;
 
-    public TrayController(MetricsRuntime runtime, Action exit)
+    public TrayController(MetricsRuntime runtime, Action showConfiguration, Action exit)
     {
         _runtime = runtime;
         _menu = new Forms.ContextMenuStrip();
@@ -28,6 +28,10 @@ internal sealed class TrayController : IDisposable
         _menu.Items.Add(_show);
         _menu.Items.Add(_hide);
 
+        _menu.Items.Add(new Forms.ToolStripSeparator());
+        var configuration = new Forms.ToolStripMenuItem("Configuración...");
+        configuration.Click += (_, _) => showConfiguration();
+        _menu.Items.Add(configuration);
         _menu.Items.Add(new Forms.ToolStripSeparator());
         var quit = new Forms.ToolStripMenuItem("Salir");
         quit.Click += (_, _) => exit();

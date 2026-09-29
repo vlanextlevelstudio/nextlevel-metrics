@@ -13,6 +13,8 @@ internal sealed class MetricsRuntime : IDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly FpsTracker _fps = new();
     private readonly string _logPath = Path.Combine(AppContext.BaseDirectory, "metrics-runtime.log");
+    private OverlaySettings _settings;
+    private string _displayFps = "--";
     private RtssSharedMemoryClient? _rtss;
     private Process? _rtssStartedByUs;
     private DateTime _rtssStartTime;
@@ -24,6 +26,21 @@ internal sealed class MetricsRuntime : IDisposable
     private long _lastLog;
     private bool _disposed;
     private OverlayMode _mode = OverlayMode.Automatico;
+
+    public MetricsRuntime(OverlaySettings settings) => _settings = settings.Clone();
+
+    public void SetSettings(OverlaySettings settings)
+    {
+        _settings = settings.Clone();
+        if (_temperatures is null) return;
+        OverlayPresentation presentation = OverlayPresentation.Create(
+            _gamePid != 0 ? _displayFps : "--", _temperatures.Cpu,
+            _temperatures.Gpu, _temperatures.Hotspot, _settings);
+        if (_gamePid != 0)
+            _rtss?.WriteMetrics(presentation, _settings, _gamePid);
+        else if (_desktopWindow?.IsVisible == true)
+            _desktopWindow.SetMetrics(presentation, _settings);
+    }
 
     public void SetOverlayMode(OverlayMode mode)
     {
@@ -94,13 +111,14 @@ internal sealed class MetricsRuntime : IDisposable
                 {
                     if (_gamePid != 0) Log("foreground game left; OSD cleared");
                     _gamePid = 0;
+                    _displayFps = "--";
                     _fps.Reset();
                     _rtss.WriteOsd("");
                     if (_mode == OverlayMode.MostrarSiempre)
                     {
                         _desktopWindow ??= new DesktopOverlayWindow();
-                        _desktopWindow.SetMetrics($"FPS -- | CPU {FormatTemperature(_temperatures.Cpu)} | " +
-                            $"GPU {FormatTemperature(_temperatures.Gpu)} - {FormatTemperature(_temperatures.Hotspot)}");
+                        _desktopWindow.SetMetrics(OverlayPresentation.Create("--", _temperatures.Cpu,
+                            _temperatures.Gpu, _temperatures.Hotspot, _settings), _settings);
                         if (!_desktopWindow.IsVisible) _desktopWindow.Show();
                     }
                     if (_lastLog == 0 || Stopwatch.GetElapsedTime(_lastLog) >= TimeSpan.FromSeconds(1))
@@ -121,14 +139,15 @@ internal sealed class MetricsRuntime : IDisposable
                     }
 
                     double? fps = _fps.Update(game);
-                    string text = $"FPS {FormatFps(fps)} | CPU {FormatTemperature(_temperatures.Cpu)} | " +
-                        $"GPU {FormatTemperature(_temperatures.Gpu)} - {FormatTemperature(_temperatures.Hotspot)}";
-                    _rtss.WriteOsd(text);
+                    _displayFps = FormatFps(fps);
+                    OverlayPresentation presentation = OverlayPresentation.Create(_displayFps,
+                        _temperatures.Cpu, _temperatures.Gpu, _temperatures.Hotspot, _settings);
+                    _rtss.WriteMetrics(presentation, _settings, game.Pid);
 
                     if (_lastLog == 0 || Stopwatch.GetElapsedTime(_lastLog) >= TimeSpan.FromSeconds(1))
                     {
                         Log($"pid={game.Pid} rawFps={game.Fps?.ToString("F1", CultureInfo.InvariantCulture) ?? "--"} " +
-                            $"text={text}");
+                            $"text={presentation.PlainText}");
                         _lastLog = Stopwatch.GetTimestamp();
                     }
                 }

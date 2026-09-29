@@ -11,7 +11,7 @@
         SizeToContent="WidthAndHeight"
         Left="0"
         Top="0">
-    <Border Padding="20,20,12,12" Background="Transparent">
+    <Border x:Name="OverlayBorder" Padding="8,5" Background="Transparent" CornerRadius="4">
         <TextBlock x:Name="MetricsText"
                    Text="FPS -- | CPU -- | GPU -- - --"
                    Foreground="White"

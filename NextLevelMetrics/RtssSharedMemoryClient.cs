@@ -21,6 +21,11 @@ internal sealed unsafe class RtssSharedMemoryClient : IDisposable
     private readonly uint _osdOffset;
     private readonly uint _osdCount;
     private int _slot = -1;
+    private uint _positionedProcessId;
+    private uint _previousX;
+    private uint _previousY;
+    private uint _appliedX;
+    private uint _appliedY;
     private bool _disposed;
 
     public uint Version { get; }
@@ -46,7 +51,7 @@ internal sealed unsafe class RtssSharedMemoryClient : IDisposable
             _osdEntrySize = Read32(20);
             _osdOffset = Read32(24);
             _osdCount = Read32(28);
-            ValidateArray(_appOffset, _appEntrySize, _appCount, 284);
+            ValidateArray(_appOffset, _appEntrySize, _appCount, 324);
             ValidateArray(_osdOffset, _osdEntrySize, _osdCount, 4608);
         }
         catch
@@ -135,9 +140,88 @@ internal sealed unsafe class RtssSharedMemoryClient : IDisposable
             if (ReadText(entry + 256, 256) != Owner)
                 throw new InvalidOperationException("RTSS OSD slot ownership changed.");
             WriteText(entry + 512, 4096, text);
+            if (text.Length == 0) RestoreGamePosition();
             _view.Write(32, unchecked(Read32(32) + 1));
         }
         finally { Unlock(); }
+    }
+
+    private long FindGameEntry(uint processId)
+    {
+        for (int index = 0; index < _appCount; index++)
+        {
+            long entry = _appOffset + (long)index * _appEntrySize;
+            if (Read32(entry) == processId) return entry;
+        }
+        return -1;
+    }
+
+    private void RestoreGamePosition()
+    {
+        if (_positionedProcessId == 0) return;
+        long entry = FindGameEntry(_positionedProcessId);
+        if (entry >= 0 && Read32(entry + 316) == _appliedX &&
+            Read32(entry + 320) == _appliedY)
+        {
+            _view.Write(entry + 316, _previousX);
+            _view.Write(entry + 320, _previousY);
+        }
+        _positionedProcessId = 0;
+    }
+
+    private void PositionGame(uint processId, OverlayPosition position)
+    {
+        if (processId == 0) throw new ArgumentOutOfRangeException(nameof(processId));
+        if (!TryLock()) throw new TimeoutException("RTSS OSD is busy.");
+        try
+        {
+            if (_positionedProcessId != processId) RestoreGamePosition();
+            long entry = FindGameEntry(processId);
+            if (entry < 0) throw new InvalidOperationException("RTSS no encuentra el proceso del juego.");
+
+            if (_positionedProcessId == 0)
+            {
+                _previousX = Read32(entry + 316);
+                _previousY = Read32(entry + 320);
+                _positionedProcessId = processId;
+            }
+
+            bool right = position is OverlayPosition.SuperiorDerecha or OverlayPosition.InferiorDerecha;
+            bool bottom = position is OverlayPosition.InferiorIzquierda or OverlayPosition.InferiorDerecha;
+            _appliedX = unchecked((uint)(right ? -20 : 20));
+            _appliedY = unchecked((uint)(bottom ? -20 : 20));
+            _view.Write(entry + 316, _appliedX);
+            _view.Write(entry + 320, _appliedY);
+        }
+        finally { Unlock(); }
+    }
+
+    public void WriteMetrics(OverlayPresentation presentation, OverlaySettings settings, uint gameProcessId)
+    {
+        PositionGame(gameProcessId, settings.Posicion);
+        int fontWeight = settings.Fuente == "Segoe UI Semibold" ? 600 : 400;
+        // Calibración inicial: el texto RTSS a 17 unidades se veía a mitad de tamaño que WPF.
+        const int fontHeightAt100 = 34;
+        var text = new StringBuilder();
+        text.Append("<L0>");
+        text.Append("<FNT=").Append(settings.Fuente).Append(",-")
+            .Append(fontHeightAt100).Append(',')
+            .Append(fontWeight).Append(",1>");
+        text.Append("<S=").Append(settings.TamanoPorcentaje).Append('>');
+        if (settings.Fondo == OverlayBackground.OscuroSuave)
+            text.Append("<C=202020><B=0,0>\b");
+
+        string? previousColor = null;
+        foreach (OverlayPart part in presentation.Parts)
+        {
+            if (!string.Equals(previousColor, part.Color, StringComparison.OrdinalIgnoreCase))
+            {
+                text.Append("<C=").Append(part.Color.AsSpan(1)).Append('>');
+                previousColor = part.Color;
+            }
+            text.Append(part.Text);
+        }
+        WriteOsd(text.ToString());
     }
 
     public RtssGameSample? ReadGame(string executable, bool includeFps)
@@ -225,6 +309,7 @@ internal sealed unsafe class RtssSharedMemoryClient : IDisposable
             {
                 try
                 {
+                    RestoreGamePosition();
                     long entry = _osdOffset + (long)_slot * _osdEntrySize;
                     if (ReadText(entry + 256, 256) == Owner)
                     {
