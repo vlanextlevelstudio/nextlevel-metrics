@@ -45,6 +45,7 @@ public partial class ConfiguracionWindow : Window
     private void Populate(OverlaySettings settings)
     {
         _loading = true;
+        StartupCheck.IsChecked = settings.IniciarConWindows;
         ColorText.Text = settings.ColorPrincipal;
         SizeSlider.Value = settings.TamanoPorcentaje;
         SizeLabel.Text = $"{settings.TamanoPorcentaje} %";
@@ -111,6 +112,7 @@ public partial class ConfiguracionWindow : Window
             return false;
 
         settings.ColorPrincipal = ColorText.Text.Trim().ToUpperInvariant();
+        settings.IniciarConWindows = StartupCheck.IsChecked == true;
         settings.TamanoPorcentaje = (int)SizeSlider.Value;
         settings.Posicion = (OverlayPosition)PositionCombo.SelectedIndex;
         settings.Fuente = FontCombo.SelectedItem as string ?? "";
@@ -148,9 +150,11 @@ public partial class ConfiguracionWindow : Window
             _saved = true;
             Close();
         }
-        catch
+        catch (Exception ex)
         {
-            StatusText.Text = "No se pudo guardar la configuración. Comprueba que tienes acceso a tu carpeta de usuario.";
+            StatusText.Text = ex is InvalidOperationException
+                ? ex.Message
+                : "No se pudo guardar la configuración. Comprueba los permisos de Windows y el acceso a tu carpeta de usuario.";
         }
     }
 

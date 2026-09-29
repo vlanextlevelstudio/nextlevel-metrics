@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -5,7 +6,7 @@ using System.Text.Json.Serialization;
 namespace NextLevelMetrics;
 
 internal enum OverlayPosition { SuperiorIzquierda, SuperiorDerecha, InferiorIzquierda, InferiorDerecha }
-internal enum OverlayBackground { Transparente, OscuroSuave }
+internal enum OverlayBackground { Transparente, OscuroSuave, NegroSolido }
 
 internal sealed class OverlaySettings
 {
@@ -14,6 +15,7 @@ internal sealed class OverlaySettings
     public OverlayPosition Posicion { get; set; } = OverlayPosition.SuperiorIzquierda;
     public string Fuente { get; set; } = "Segoe UI Semibold";
     public OverlayBackground Fondo { get; set; } = OverlayBackground.Transparente;
+    public bool IniciarConWindows { get; set; }
     public bool AvisosPorColor { get; set; } = true;
     public int CpuAviso { get; set; } = 80;
     public int CpuCritico { get; set; } = 90;
@@ -47,11 +49,24 @@ internal sealed class OverlaySettings
 
     public static IReadOnlyList<string> AvailableFonts { get; } = FindAvailableFonts();
 
+    public static string FuenteUtilizable(string fuente)
+    {
+        if (AvailableFonts.Contains(fuente, StringComparer.OrdinalIgnoreCase)) return fuente;
+        Trace.TraceWarning($"La fuente {fuente} no está disponible; se utiliza Segoe UI.");
+        return AvailableFonts.Contains("Segoe UI") ? "Segoe UI" :
+            AvailableFonts.FirstOrDefault() ?? "Segoe UI";
+    }
+
     private static IReadOnlyList<string> FindAvailableFonts()
     {
-        string[] desired = ["Segoe UI", "Segoe UI Semibold", "Consolas",
-            "Cascadia Mono", "Cascadia Code", "Arial", "Verdana", "Tahoma",
-            "Calibri", "Trebuchet MS", "Courier New", "Lucida Console", "Bahnschrift"];
+        string[] desired = ["Arial", "Arial Narrow", "Bahnschrift", "Calibri",
+            "Cambria", "Candara", "Cascadia Code", "Cascadia Mono",
+            "Century Gothic", "Consolas", "Corbel", "Courier New",
+            "Franklin Gothic Medium", "Gadugi", "Georgia", "Impact",
+            "Lucida Console", "Lucida Sans Unicode", "Palatino Linotype",
+            "Segoe Print", "Segoe Script", "Segoe UI", "Segoe UI Semibold",
+            "Segoe UI Variable", "Tahoma", "Times New Roman", "Trebuchet MS",
+            "Verdana"];
         const string fontKey = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts";
         using var machineFonts = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(fontKey);
         using var userFonts = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(fontKey);
@@ -61,6 +76,7 @@ internal sealed class OverlaySettings
         return desired.Where(font => names.Any(name =>
             name.StartsWith(font + " (", StringComparison.OrdinalIgnoreCase) ||
             name.StartsWith(font + " Regular (", StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(font => font, StringComparer.CurrentCultureIgnoreCase)
             .ToArray();
     }
 }
@@ -84,7 +100,13 @@ internal static class OverlaySettingsStore
             if (!File.Exists(PathName)) return new OverlaySettings();
             OverlaySettings? saved = JsonSerializer.Deserialize<OverlaySettings>(
                 File.ReadAllText(PathName), JsonOptions);
-            return saved is not null && saved.Validate() is null ? saved : new OverlaySettings();
+            if (saved is null) return new OverlaySettings();
+            if (!OverlaySettings.AvailableFonts.Contains(saved.Fuente, StringComparer.OrdinalIgnoreCase))
+            {
+                Trace.TraceWarning($"La fuente {saved.Fuente} ya no está disponible; se utiliza Segoe UI.");
+                saved.Fuente = OverlaySettings.FuenteUtilizable("Segoe UI");
+            }
+            return saved.Validate() is null ? saved : new OverlaySettings();
         }
         catch { return new OverlaySettings(); }
     }

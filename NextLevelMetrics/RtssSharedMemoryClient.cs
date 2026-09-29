@@ -199,17 +199,20 @@ internal sealed unsafe class RtssSharedMemoryClient : IDisposable
     public void WriteMetrics(OverlayPresentation presentation, OverlaySettings settings, uint gameProcessId)
     {
         PositionGame(gameProcessId, settings.Posicion);
-        int fontWeight = settings.Fuente == "Segoe UI Semibold" ? 600 : 400;
+        string fuente = OverlaySettings.FuenteUtilizable(settings.Fuente);
+        int fontWeight = fuente == "Segoe UI Semibold" ? 600 : 400;
         // Calibración inicial: el texto RTSS a 17 unidades se veía a mitad de tamaño que WPF.
         const int fontHeightAt100 = 34;
         var text = new StringBuilder();
         text.Append("<L0>");
-        text.Append("<FNT=").Append(settings.Fuente).Append(",-")
+        text.Append("<FNT=").Append(fuente).Append(",-")
             .Append(fontHeightAt100).Append(',')
             .Append(fontWeight).Append(",1>");
         text.Append("<S=").Append(settings.TamanoPorcentaje).Append('>');
         if (settings.Fondo == OverlayBackground.OscuroSuave)
             text.Append("<C=202020><B=0,0>\b");
+        else if (settings.Fondo == OverlayBackground.NegroSolido)
+            text.Append("<C=000000><B=0,0>\b");
 
         string? previousColor = null;
         foreach (OverlayPart part in presentation.Parts)

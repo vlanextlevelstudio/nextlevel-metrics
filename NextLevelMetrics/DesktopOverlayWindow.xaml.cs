@@ -71,7 +71,7 @@ public partial class DesktopOverlayWindow : Window
     {
         _lastSettings = settings;
         double scale = settings.TamanoPorcentaje / 100.0;
-        MetricsText.FontFamily = new Media.FontFamily(settings.Fuente);
+        MetricsText.FontFamily = new Media.FontFamily(OverlaySettings.FuenteUtilizable(settings.Fuente));
         MetricsText.FontWeight = settings.Fuente == "Segoe UI Semibold"
             ? FontWeights.SemiBold : FontWeights.Normal;
         MetricsText.FontSize = 17 * scale;
@@ -83,9 +83,13 @@ public partial class DesktopOverlayWindow : Window
             shadow.BlurRadius = 4 * scale;
             shadow.ShadowDepth = scale;
         }
-        OverlayBorder.Background = settings.Fondo == OverlayBackground.OscuroSuave
-            ? new Media.SolidColorBrush(Media.Color.FromArgb(160, 20, 20, 20))
-            : Media.Brushes.Transparent;
+        OverlayBorder.Background = settings.Fondo switch
+        {
+            OverlayBackground.OscuroSuave =>
+                new Media.SolidColorBrush(Media.Color.FromArgb(160, 20, 20, 20)),
+            OverlayBackground.NegroSolido => Media.Brushes.Black,
+            _ => Media.Brushes.Transparent
+        };
         MetricsText.Inlines.Clear();
         foreach (OverlayPart part in presentation.Parts)
         {

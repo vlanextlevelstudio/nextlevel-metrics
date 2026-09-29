@@ -35,6 +35,7 @@ public partial class App : System.Windows.Application
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         base.OnStartup(e);
         _savedSettings = OverlaySettingsStore.Load();
+        SincronizarInicioConWindows();
         _runtime = new MetricsRuntime(_savedSettings);
         _tray = new TrayController(_runtime, ShowConfiguration, ExitFromTray);
         _ = _runtime.RunAsync();
@@ -50,17 +51,44 @@ public partial class App : System.Windows.Application
             return;
         }
 
+        SincronizarInicioConWindows();
         _configurationWindow = new ConfiguracionWindow(_savedSettings,
             settings => _runtime?.SetSettings(settings),
             settings =>
             {
-                OverlaySettingsStore.Save(settings);
+                bool inicioAnterior = InicioConWindows.EstaActivo();
+                InicioConWindows.Establecer(settings.IniciarConWindows);
+                try { OverlaySettingsStore.Save(settings); }
+                catch
+                {
+                    if (inicioAnterior != settings.IniciarConWindows)
+                    {
+                        try { InicioConWindows.Establecer(inicioAnterior); }
+                        catch (Exception ex) { System.Diagnostics.Trace.TraceError($"No se pudo restaurar el inicio con Windows: {ex}"); }
+                    }
+                    throw;
+                }
                 _savedSettings = settings.Clone();
                 _runtime?.SetSettings(settings);
             });
         _configurationWindow.Closed += (_, _) => _configurationWindow = null;
         _configurationWindow.Show();
         _configurationWindow.Activate();
+    }
+
+    private void SincronizarInicioConWindows()
+    {
+        try
+        {
+            bool activo = InicioConWindows.EstaActivo();
+            if (_savedSettings.IniciarConWindows == activo) return;
+            _savedSettings.IniciarConWindows = activo;
+            OverlaySettingsStore.Save(_savedSettings);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceWarning($"No se pudo sincronizar el inicio con Windows: {ex}");
+        }
     }
 
     private void ExitFromTray()
