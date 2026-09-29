@@ -5,6 +5,7 @@ namespace NextLevelMetrics;
 public partial class App : Application
 {
     private RtssSharedMemoryClient? _rtss;
+    private MetricsRuntime? _runtime;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -17,8 +18,17 @@ public partial class App : Application
             return;
         }
 
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
         base.OnStartup(e);
-        new MainWindow().Show();
+        _runtime = new MetricsRuntime();
+        _ = _runtime.RunAsync();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _runtime?.Dispose();
+        _rtss?.Dispose();
+        base.OnExit(e);
     }
 
     private async Task RunRtssProbeAsync(bool showFps)

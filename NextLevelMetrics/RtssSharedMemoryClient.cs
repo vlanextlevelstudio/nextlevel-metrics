@@ -119,7 +119,7 @@ internal sealed unsafe class RtssSharedMemoryClient : IDisposable
     private void WriteText(long offset, int capacity, string text)
     {
         byte[] bytes = new byte[capacity];
-        int count = Encoding.ASCII.GetBytes(text, 0,
+        int count = Encoding.Latin1.GetBytes(text, 0,
             Math.Min(text.Length, capacity - 1), bytes, 0);
         bytes[count] = 0;
         _view.WriteArray(offset, bytes, 0, bytes.Length);
@@ -160,6 +160,29 @@ internal sealed unsafe class RtssSharedMemoryClient : IDisposable
                 ? 1000.0 * frames / elapsed
                 : null;
             return new RtssGameSample(pid, name, time0, time1, frames, fps);
+        }
+        return null;
+    }
+
+    public RtssGameSample? ReadProcess(uint processId)
+    {
+        if (processId == 0) return null;
+        for (int index = 0; index < _appCount; index++)
+        {
+            long entry = _appOffset + (long)index * _appEntrySize;
+            if (Read32(entry) != processId) continue;
+            string name = ReadText(entry + 4, 260);
+            uint api = Read32(entry + 264) & 0xFFFF;
+            if (name.Length == 0 || api is < 1 or > 10) return null;
+
+            uint time0 = Read32(entry + 268);
+            uint time1 = Read32(entry + 272);
+            uint frames = Read32(entry + 276);
+            uint elapsed = unchecked(time1 - time0);
+            double? fps = time0 != 0 && elapsed > 0 && elapsed < 5000 && frames > 0
+                ? 1000.0 * frames / elapsed
+                : null;
+            return new RtssGameSample(processId, name, time0, time1, frames, fps);
         }
         return null;
     }
