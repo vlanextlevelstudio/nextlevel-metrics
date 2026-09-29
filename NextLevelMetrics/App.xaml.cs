@@ -2,13 +2,25 @@
 
 namespace NextLevelMetrics;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private RtssSharedMemoryClient? _rtss;
     private MetricsRuntime? _runtime;
+    private TrayController? _tray;
+    private Mutex? _singleInstance;
+    private bool _ownsMutex;
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        _singleInstance = new Mutex(true, @"Local\NextLevelMetrics.SingleInstance", out bool createdNew);
+        if (!createdNew)
+        {
+            base.OnStartup(e);
+            Shutdown();
+            return;
+        }
+        _ownsMutex = true;
+
         if (e.Args.Length > 0 &&
             (e.Args[0] == "--rtss-static" || e.Args[0] == "--rtss-fps"))
         {
@@ -21,13 +33,26 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         base.OnStartup(e);
         _runtime = new MetricsRuntime();
+        _tray = new TrayController(_runtime, ExitFromTray);
         _ = _runtime.RunAsync();
+    }
+
+    private void ExitFromTray()
+    {
+        _tray?.Dispose();
+        _tray = null;
+        _runtime?.Dispose();
+        _runtime = null;
+        Shutdown();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _tray?.Dispose();
         _runtime?.Dispose();
         _rtss?.Dispose();
+        if (_ownsMutex) _singleInstance?.ReleaseMutex();
+        _singleInstance?.Dispose();
         base.OnExit(e);
     }
 

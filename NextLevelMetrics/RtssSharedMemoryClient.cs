@@ -187,6 +187,34 @@ internal sealed unsafe class RtssSharedMemoryClient : IDisposable
         return null;
     }
 
+    public uint FindActiveProcessId(uint preferredProcessId)
+    {
+        uint now = unchecked((uint)Environment.TickCount);
+        uint bestProcessId = 0;
+        uint bestAge = uint.MaxValue;
+
+        for (int index = 0; index < _appCount; index++)
+        {
+            long entry = _appOffset + (long)index * _appEntrySize;
+            uint pid = Read32(entry);
+            uint api = Read32(entry + 264) & 0xFFFF;
+            uint time1 = Read32(entry + 272);
+            uint frames = Read32(entry + 276);
+            uint age = unchecked(now - time1);
+            if (pid == 0 || api is < 1 or > 10 || time1 == 0 || frames == 0 || age > 3000)
+                continue;
+
+            if (pid == preferredProcessId) return pid;
+            if (age < bestAge)
+            {
+                bestAge = age;
+                bestProcessId = pid;
+            }
+        }
+
+        return bestProcessId;
+    }
+
     public void Dispose()
     {
         if (_disposed) return;

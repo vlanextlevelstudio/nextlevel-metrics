@@ -6,6 +6,8 @@ using Microsoft.Win32;
 
 namespace NextLevelMetrics;
 
+internal enum OverlayMode { Automatico, ForzadoVisible, ForzadoOculto }
+
 internal sealed class MetricsRuntime : IDisposable
 {
     private readonly CancellationTokenSource _stop = new();
@@ -17,6 +19,17 @@ internal sealed class MetricsRuntime : IDisposable
     private long _lastTemperatures;
     private long _lastLog;
     private bool _disposed;
+    private OverlayMode _mode = OverlayMode.Automatico;
+
+    public void SetOverlayMode(OverlayMode mode)
+    {
+        _mode = mode;
+        if (mode == OverlayMode.ForzadoOculto)
+        {
+            try { _rtss?.WriteOsd(""); } catch (Exception ex) { Log($"ERROR hide OSD: {ex.Message}"); }
+        }
+        Log($"overlay mode={mode}");
+    }
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
@@ -56,7 +69,11 @@ internal sealed class MetricsRuntime : IDisposable
                 }
 
                 uint foregroundPid = ForegroundProcessId();
-                RtssGameSample? game = _rtss.ReadProcess(foregroundPid);
+                RtssGameSample? game = _mode == OverlayMode.ForzadoOculto
+                    ? null
+                    : _rtss.ReadProcess(foregroundPid);
+                if (game is null && _mode == OverlayMode.ForzadoVisible)
+                    game = _rtss.ReadProcess(_rtss.FindActiveProcessId(_gamePid));
                 if (game is null)
                 {
                     if (_gamePid != 0) Log("foreground game left; OSD cleared");
